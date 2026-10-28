@@ -1,4 +1,11 @@
+# Environments & Credentials
+env/
+venv/
+.venv/
+.env*
+.secret*
+!.env.example
+
+# Misc.
 __pycache__/
 .vscode/
-env/
-.env
