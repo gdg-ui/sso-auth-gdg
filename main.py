@@ -17,7 +17,7 @@ app = FastAPI()
 SECRET_KEY = os.getenv("SECRET_KEY", "lmaopisan") 
 
 # Load the base form url from environment variable
-FORM_LINK = os.getenv("FORM_LINK", "https://woi")
+FORM_LINK = os.getenv("FORM_LINK", "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
 
 # Open Json
 with open ("parsed.json", "r") as file:
@@ -161,7 +161,7 @@ async def validate(request: Request, token=""):
         csv = ",".join([f"{value}" for key, value in decoded.items()])
         
         return csv
-    except:
+    except jwt.InvalidTokenError:
         return "Token is Not Valid"
     
 if __name__ == '__main__':
