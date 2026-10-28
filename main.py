@@ -94,7 +94,14 @@ async def root(request: Request, service="", ticket=""):
         cleaned_xml = raw_data.strip()
         root = ET.fromstring(cleaned_xml)
         namespace = {'cas': 'http://www.yale.edu/tp/cas'}
-        
+
+        failure = root.find(".//cas:authenticationFailure", namespace)
+        if failure is not None:
+            return {
+                "error": "CAS authentication failed, please refresh",
+                "details": (failure.text or "").strip() or failure.get("code"),
+            }
+
         user = root.find(".//cas:user", namespace).text
         ldap_cn = root.find(".//cas:ldap_cn", namespace).text
         kd_org = root.find(".//cas:kd_org", namespace).text
