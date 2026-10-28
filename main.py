@@ -2,6 +2,7 @@ import json
 import os
 import xml.etree.ElementTree as ET
 import urllib.request
+from urllib.parse import urlencode
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 import jwt
@@ -15,10 +16,57 @@ app = FastAPI()
 # Load the secret key from environment variable
 SECRET_KEY = os.getenv("SECRET_KEY", "lmaopisan") 
 
+# Load the base form url from environment variable
+FORM_LINK = os.getenv("FORM_LINK", "https://woi")
+
 # Open Json
 with open ("parsed.json", "r") as file:
     faculty_data = json.load(file)
-    
+
+# Maps readable field names to the Google Form's entry IDs, so callers
+# of get_form_link() don't need to know the raw entry.XXXXXXX codes.
+FORM_FIELD_ENTRIES = {
+    "name": "entry.1254159707",
+    "email": "entry.709516174",
+    "whatsapp": "entry.2070004909",
+    "line_id": "entry.10108758",
+    "faculty": "entry.1855554993",
+    "major": "entry.1617867247",
+    "batch": "entry.1810171063",
+}
+
+FACULTY_LABEL_OVERRIDES = {
+    "Ilmu Pengetahuan Budaya": "Ilmu Budaya",
+    "Matematika dan Ilmu Pengetahuan Alam": "Matematika dan Pengetahuan Alam",
+}
+
+def get_faculty_label(faculty: str) -> str:
+    if faculty == "Pendidikan Vokasi":
+        return "Program Pendidikan Vokasi"
+    return f"Fakultas {FACULTY_LABEL_OVERRIDES.get(faculty, faculty)}"
+
+def get_form_link(base_url: str, **fields):
+    """Build a pre-filled Google Form link.
+
+    Usage:
+        get_form_link(
+            FORM_LINK,
+            name=name,
+            email=email,
+            faculty=faculty,
+            major=major,
+            batch=batch,
+        )
+    """
+    params = {"usp": "pp_url"}
+
+    for field_name, value in fields.items():
+        if field_name not in FORM_FIELD_ENTRIES:
+            raise ValueError(f"Unknown form field: {field_name}")
+        if value is not None:
+            params[FORM_FIELD_ENTRIES[field_name]] = value
+
+    return f"{base_url}?{urlencode(params)}"
 
 @app.get("/member")
 async def root(request: Request, service="", ticket=""):
@@ -65,23 +113,33 @@ async def root(request: Request, service="", ticket=""):
         # Get Json Data based on organizational code
         user_faculty_data = [faculty for faculty in faculty_data if faculty["id"] == kd_org][0]
         
-        # Encrypt the data with JWT
+        # Encrypt the data with JWT (kept for /validate; the current form
+        # has no field to carry it, so it isn't part of the prefill link)
         token = jwt.encode(payload=payload, key=SECRET_KEY, algorithm='HS256')
-        
-        name = name.replace(" ", "+")
+        print("Generated Token:", token)  # Debugging line so the token can still be retrieved for /validate
+
         npm_prefix = npm[:2]
-        
-        faculty = (user_faculty_data["fakultas"]).replace(" ", "+")
-        major = user_faculty_data["prodi"].replace(" ", "+")
-        
-        if (npm_prefix == "23"):
-            batch = "2023"
-        elif (npm_prefix == "24"):
+
+        faculty = user_faculty_data["fakultas"]
+        major = user_faculty_data["prodi"]
+
+        if (npm_prefix == "24"):
             batch = "2024"
         elif (npm_prefix == "25"):
             batch = "2025"
+        elif (npm_prefix == "26"):
+            batch = "2026"
+        else:
+            batch = None
 
-        form_link = f"https://docs.google.com/forms/d/e/1FAIpQLSc2gqF48owujuWDduQbBV1HGgyh0UDVkvrvo8cMxdjjRRXETA/viewform?usp=pp_url&entry.194718133={token}&entry.1937980029={name}&entry.1698494109={'Fakultas+' + faculty}&entry.1912384214={major}&entry.430556260={batch}&entry.713211935={user}@ui.ac.id"
+        form_link = get_form_link(
+            f"{FORM_LINK}/viewform",
+            name=name,
+            email=f"{user}@ui.ac.id",
+            faculty=get_faculty_label(faculty),
+            major=major,
+            batch=batch,
+        )
 
         return RedirectResponse(url=form_link)
         
