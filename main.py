@@ -68,6 +68,11 @@ def get_form_link(base_url: str, **fields):
 
     return f"{base_url}?{urlencode(params)}"
 
+@app.get("/")
+async def index(request: Request):
+    query = f"?{request.url.query}" if request.url.query else ""
+    return RedirectResponse(url=f"/member{query}")
+
 @app.get("/member")
 async def root(request: Request, service="", ticket=""):
 
