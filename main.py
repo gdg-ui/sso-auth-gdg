@@ -97,10 +97,9 @@ async def root(request: Request, service="", ticket=""):
 
         failure = root.find(".//cas:authenticationFailure", namespace)
         if failure is not None:
-            return {
-                "error": "CAS authentication failed, please refresh",
-                "details": (failure.text or "").strip() or failure.get("code"),
-            }
+            details = (failure.text or "").strip() or failure.get("code")
+            print("CAS authentication failed, restarting login flow:", details)  # Debugging line
+            return RedirectResponse(url="/")
 
         user = root.find(".//cas:user", namespace).text
         ldap_cn = root.find(".//cas:ldap_cn", namespace).text
